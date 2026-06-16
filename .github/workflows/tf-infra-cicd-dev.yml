@@ -1,0 +1,64 @@
+name: Infrastructure CI/CD – dev
+
+# When does this run?
+# 1. On every pull request that changes terraform/ files → plan + apply
+# 2. Manually via the GitHub Actions UI (workflow_dispatch)
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "terraform/**"
+  workflow_dispatch:
+
+jobs:
+  terraform-validate-plan-apply:
+    runs-on: ubuntu-latest
+
+    # All terraform commands run from the terraform/ folder
+    defaults:
+      run:
+        working-directory: terraform
+
+    # Required so the manual-approval action (Phase 4) can post GitHub issues
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      # 1. Check out the repo so the runner has our code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Terraform on the GitHub-hosted runner
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # 3. Inject the machine-user credentials from GitHub Secrets
+      #    (never hardcoded — stored encrypted in repo Settings → Secrets)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+
+      # 4. Check formatting — fails fast if someone forgot terraform fmt
+      - name: Terraform Format check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      # 5. Init with the remote backend so state goes to S3, not the runner
+      - name: Terraform Init
+        run: terraform init --backend-config="backends/dev.conf"
+
+      # 6. Validate syntax
+      - name: Terraform Validate
+        run: terraform validate -no-color
+
+      # 7. Preview the changes (saved to file for Phase 4 manual approval)
+      - name: Terraform Plan
+        run: terraform plan -no-color --var-file="environments/dev.tfvars" -out=plan.tfout
+
+      # 8. Apply — creates/updates real AWS resources
+      - name: Terraform Apply
+        run: terraform apply -auto-approve plan.tfout
