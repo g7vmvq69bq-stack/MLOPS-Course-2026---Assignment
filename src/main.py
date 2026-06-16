@@ -17,6 +17,7 @@ WHAT IT DOES:
   4. Saves the best model to disk and registers it in the MLflow Model Registry
 """
 
+import os
 import yaml
 import joblib
 import mlflow
@@ -116,6 +117,7 @@ def main():
 
     # ── 4. Save and register the BEST model ───────────────────────────────
     print(f"\n✅ Best model: {best_name} (ROC-AUC = {best_roc:.4f})")
+    os.makedirs(os.path.dirname(config["model"]["model_path"]), exist_ok=True)
     joblib.dump(best_model, config["model"]["model_path"])
     print(f"   Saved to {config['model']['model_path']}")
 
