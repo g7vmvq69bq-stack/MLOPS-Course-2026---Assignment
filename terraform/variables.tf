@@ -21,3 +21,15 @@ variable "s3_buckets" {
   type        = list(any)
   default     = []
 }
+
+variable "ecr_repositories" {
+  description = "List of ECR repositories to create"
+  type        = list(any)
+  default     = []
+}
+
+variable "ecs_services" {
+  description = "List of ECS Fargate services to deploy"
+  type        = list(any)
+  default     = []
+}

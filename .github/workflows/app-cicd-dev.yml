@@ -1,0 +1,94 @@
+name: Application CI/CD – dev (Continuous Training)
+
+# WHY a SEPARATE workflow from the infrastructure one?
+# Infrastructure changes (Terraform) and application changes (ML code/data)
+# happen at different frequencies and need different steps. Keeping them
+# separate means a data scientist can trigger a retrain without touching
+# any infrastructure code, and vice versa.
+#
+# THIS IS CONTINUOUS TRAINING (CT):
+# When data or src code changes → retrain → rebuild container → push to ECR
+# → force a new ECS deployment → live predictions come from the fresh model.
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "src/**"
+  workflow_dispatch:
+
+jobs:
+  retrain-build-push-deploy:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src
+
+    steps:
+      # ── 1. Get the code ──────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Python ─────────────────────────────────────────────────────
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── 3. Install dependencies ───────────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── 4. Authenticate with AWS ──────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+
+      # ── 5. Pull latest data from DVC remote (S3) ──────────────────────────────
+      # WHY: The actual training data is NOT in Git (too large, wrong tool).
+      # DVC knows from data.dvc exactly which version to pull from S3.
+      - name: Pull latest data with DVC
+        run: dvc pull
+
+      # ── 6. Retrain the model ──────────────────────────────────────────────────
+      # This runs the full pipeline: ingest → clean → train → MLflow log
+      - name: Retrain model
+        run: python main.py
+
+      # ── 7. Log in to ECR ──────────────────────────────────────────────────────
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── 8. Build, tag and push the Docker image ───────────────────────────────
+      # The image contains the freshly trained model.pkl baked in.
+      # Tagging as 'latest' means ECS always pulls the newest version.
+      - name: Build, tag and push image to ECR
+        env:
+          REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG:  latest
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
+      # ── 9. Force ECS to pull the new image ────────────────────────────────────
+      # ECS doesn't auto-redeploy when a new 'latest' tag is pushed.
+      # This step forces a new deployment so the live service gets the
+      # freshly trained model within minutes.
+      - name: Force ECS redeployment
+        env:
+          ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+          ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force-new-deployment \
+            --region eu-west-3
