@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+venv/
+
+# Data tracked by DVC — never commit raw data to Git
+data/
+!data/.gitkeep
+
+# Trained model artifacts — generated at training time
+models/
+!models/.gitkeep
+
+# MLflow local tracking database and artifacts
+mlruns/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# DVC internal files (kept) — data files (ignored)
+# .dvc/ is NOT ignored — it contains DVC config that must be versioned
+/data
