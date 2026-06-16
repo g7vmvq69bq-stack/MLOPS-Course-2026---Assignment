@@ -1,0 +1,61 @@
+# ──────────────────────────────────────────
+# Terraform – NEVER commit these
+# ──────────────────────────────────────────
+
+# State files contain sensitive infrastructure details
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Local .terraform directory holds downloaded provider plugins
+.terraform/
+.terraform.lock.hcl
+
+# Crash and log files
+crash.log
+crash.*.log
+*.log
+
+# Terraform variable files that may hold secrets
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Saved plan files
+*.tfout
+
+# ──────────────────────────────────────────
+# Python / ML (used from Phase 3 onward)
+# ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Data and model artifacts (versioned with DVC instead)
+src/data/
+src/models/
+*.pkl
+*.h5
+*.pt
+
+# DVC internals are kept; data is not
+!src/.dvc/
+!src/data.dvc
+
+# MLflow local tracking
+mlruns/
+
+# ──────────────────────────────────────────
+# General
+# ──────────────────────────────────────────
+.DS_Store
+.env
+*.env
