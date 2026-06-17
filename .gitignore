@@ -54,6 +54,9 @@ src/models/
 mlruns/
 mlflow.db
 
+# Evidently reports (generated HTML — too large for git)
+src/reports/*.html
+
 # ──────────────────────────────────────────
 # General
 # ──────────────────────────────────────────
