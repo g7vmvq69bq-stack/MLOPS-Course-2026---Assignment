@@ -26,6 +26,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
+from evidently import Dataset, Report
+from evidently.presets import DataSummaryPreset, DataDriftPreset
 
 from pipelines.ingest import Ingestion
 from pipelines.clean import Cleaner
@@ -126,6 +128,33 @@ def main():
     mlflow.register_model(model_uri, model_name)
     print(f"   Registered as '{model_name}' in MLflow Model Registry")
     print("\n   Open 'mlflow ui' to compare all runs in the dashboard.")
+
+    # ── 5. Generate Evidently Data Quality & Drift Report ─────────────────────
+    # WHY EVIDENTLY:
+    #   A model trained on historical data can silently degrade if the real-world
+    #   data changes over time. This is called "data drift". Evidently compares
+    #   the training data distribution against the test (current) data and
+    #   generates a visual HTML report showing any statistical differences.
+    #   This is the foundation of Continuous Monitoring — catching problems
+    #   before they reach production.
+    print("\n📊 Generating Evidently data quality & drift report...")
+    try:
+        train_raw = pd.read_csv(config["data"]["train_path"])
+        test_raw  = pd.read_csv(config["data"]["test_path"])
+
+        reference = Dataset.from_pandas(train_raw)
+        current   = Dataset.from_pandas(test_raw)
+
+        report = Report([DataSummaryPreset(), DataDriftPreset()])
+        result = report.run(reference_data=reference, current_data=current)
+
+        os.makedirs("reports", exist_ok=True)
+        report_path = "reports/data_quality_report.html"
+        result.save_html(report_path)
+        print(f"   ✅ Report saved → {report_path}")
+        print("   Open it in your browser to see data drift analysis.")
+    except Exception as e:
+        print(f"   ⚠️  Evidently report failed (non-critical): {e}")
 
 
 if __name__ == "__main__":
