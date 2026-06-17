@@ -52,6 +52,7 @@ src/models/
 
 # MLflow local tracking
 mlruns/
+mlflow.db
 
 # ──────────────────────────────────────────
 # General
