@@ -12,6 +12,7 @@ learning system.
 | 2 | Class 2 | Remote backend, Terraform modules, GitHub Actions CI/CD | Level 1 |
 | 3 | Class 3 | ML pipelines, DVC data versioning, FastAPI, Docker | Level 1 → 2 |
 | 4 | Class 4 | ECR, ECS Fargate deployment, MLflow, manual approval gate | Level 2 + CT |
+| Bonus | Extra | Multi-model comparison, Evidently AI monitoring, Model Registry | Level 2 + CT + CM |
 
 ## Tools & Concepts
 
@@ -28,7 +29,10 @@ learning system.
 | Container registry | AWS ECR | Versioned Docker images ready for cloud deployment |
 | Cloud deployment | AWS ECS Fargate | Serverless container hosting; no server management |
 | Experiment tracking | MLflow | Compare runs, log metrics/params, register models |
-| Continuous Training | App CI/CD (DVC → retrain → ECR push) | Fresh model deployed automatically on data change |
+| Model Registry | MLflow Model Registry | Version and govern every model promoted to production |
+| Multi-model comparison | MLflow + scikit-learn | Train RF, GBM, LR — auto-select best by ROC-AUC |
+| Continuous Training | App CI/CD (DVC → retrain → ECR push) | Fresh model deployed automatically on code/data change |
+| Continuous Monitoring | Evidently AI | Auto-detect data drift after every training run; HTML report saved to reports/ |
 
 ## Repository Structure
 
@@ -47,15 +51,16 @@ mlops-course-2026/
 │   └── ecr_repositories.tf
 ├── src/                        # ML application (Phases 3–4)
 │   ├── pipelines/
-│   │   ├── ingest.py
-│   │   ├── clean.py
-│   │   ├── train.py
-│   │   └── predict.py
+│   │   ├── ingest.py           # Load raw CSV, split train/test
+│   │   ├── clean.py            # Remove nulls and duplicates
+│   │   ├── train.py            # StandardScaler + RandomForest pipeline
+│   │   └── predict.py          # Load model and run inference
 │   ├── data/                   # Tracked by DVC, NOT Git
 │   ├── models/                 # Generated at training time
+│   ├── reports/                # Evidently AI HTML drift reports (generated, NOT Git)
 │   ├── app.py                  # FastAPI prediction service
-│   ├── main.py                 # MLflow training orchestrator
-│   ├── config.yml
+│   ├── main.py                 # Multi-model orchestrator + MLflow + Evidently
+│   ├── config.yml              # Centralised configuration
 │   ├── requirements.txt
 │   └── Dockerfile
 └── .github/
